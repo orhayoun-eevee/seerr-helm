@@ -1,0 +1,352 @@
+# Default values for seerr
+# Uses lib-chart workload model (0.0.13)
+
+# ----------------------------------------------------------------------------
+# Global Configuration
+# ----------------------------------------------------------------------------
+global:
+  name: seerr
+  namespace: media-center
+  chart:
+    appVersion: v3.1.0
+  labels: {}
+
+# ----------------------------------------------------------------------------
+# Workload Configuration
+# ----------------------------------------------------------------------------
+workload:
+  type: deployment
+  spec:
+    replicas: 1
+    strategy:
+      type: Recreate
+    revisionHistoryLimit: 3
+    terminationGracePeriodSeconds: 60
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: false
+    automountServiceAccountToken: false
+    nodeSelector:
+      kubernetes.io/os: linux
+
+    podLabels:
+      app.kubernetes.io/part-of: media-center
+      logging.kubernetes.io/component: media-center
+      logging.kubernetes.io/service: seerr
+
+    podSecurityContext:
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+      runAsNonRoot: true
+      supplementalGroups: []
+
+    containers:
+      seerr:
+        enabled: true
+        image:
+          repository: ghcr.io/seerr-team/seerr
+          tag: "v3.1.0@sha256:b35ba0461c4a1033d117ac1e5968fd4cbe777899e4cbfbdeaf3d10a42a0eb7e9"
+          pullPolicy: IfNotPresent
+
+        env:
+          - name: TZ
+            value: "UTC"
+          - name: PORT
+            value: "8080"
+          - name: HOST
+            value: "0.0.0.0"
+          - name: CONFIG_DIRECTORY
+            value: "/app/config"
+          - name: DB_TYPE
+            value: "postgres"
+          - name: DB_LOG_QUERIES
+            value: "false"
+
+        # DB credentials are consumed from external Secret/seerr-db.
+        # Secret lifecycle is intentionally managed outside this chart.
+        envFrom:
+          - secretRef:
+              name: seerr-db
+
+        ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+
+        volumeMounts:
+          - name: config
+            mountPath: /app/config
+          - name: tmp
+            mountPath: /tmp
+
+        livenessProbe:
+          httpGet:
+            path: /api/v1/status
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+
+        readinessProbe:
+          httpGet:
+            path: /api/v1/status
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+
+        startupProbe:
+          httpGet:
+            path: /api/v1/status
+            port: http
+            scheme: HTTP
+          failureThreshold: 30
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+          privileged: false
+          appArmorProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+            ephemeral-storage: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+            ephemeral-storage: 2Gi
+
+# ----------------------------------------------------------------------------
+# Service Configuration
+# ----------------------------------------------------------------------------
+network:
+  enabled: true
+  services:
+    enabled: true
+    items:
+      http:
+        enabled: true
+        type: ClusterIP
+        ports:
+          http:
+            port: 8080
+            targetPort: http
+            protocol: TCP
+        annotations:
+          description: "Seerr HTTP service"
+
+  httpRoute:
+    enabled: true
+    port: 8080
+    host: seerr-k8s.orhayoun.com
+    gateway:
+      name: shared-platform-gateway
+      namespace: istio-system
+    routes:
+      - name: route
+        enabled: true
+        listener:
+          sectionName: https
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: seerr-http
+                port: 8080
+                weight: 100
+                group: ""
+                kind: Service
+      - name: http-redirect
+        enabled: true
+        listener:
+          sectionName: http
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            filters:
+              - type: RequestRedirect
+                requestRedirect:
+                  scheme: https
+                  statusCode: 301
+
+  networkPolicy:
+    enabled: true
+    items:
+      default:
+        enabled: true
+        policyTypes:
+          - Ingress
+          - Egress
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: istio-system
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: shared-platform-gateway
+            ports:
+              - protocol: TCP
+                port: 15008
+        egress:
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+                podSelector:
+                  matchLabels:
+                    k8s-app: kube-dns
+            ports:
+              - protocol: UDP
+                port: 53
+              - protocol: TCP
+                port: 53
+
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: postgresql
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: databases
+            ports:
+              - protocol: TCP
+                port: 5432
+
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: media-center
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: sonarr
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: media-center
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: radarr
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: istio-system
+            ports:
+              - protocol: TCP
+                port: 15008
+
+          - to:
+              - ipBlock:
+                  cidr: "0.0.0.0/0"
+                  except:
+                    - "10.42.0.0/16"
+                    - "10.43.0.0/16"
+                    - "192.168.0.0/16"
+            ports:
+              - protocol: TCP
+                port: 80
+              - protocol: TCP
+                port: 443
+
+  istio:
+    enabled: true
+    authorizationPolicy:
+      enabled: true
+      items:
+        ingress:
+          enabled: true
+          action: ALLOW
+          rules:
+            - from:
+                - source:
+                    principals:
+                      - "cluster.local/ns/istio-system/sa/shared-platform-gateway-istio"
+              to:
+                - operation:
+                    ports: ["8080"]
+    destinationRule:
+      enabled: true
+      host: seerr-http
+      trafficPolicy:
+        connectionPool:
+          tcp:
+            maxConnections: 100
+          http:
+            http1MaxPendingRequests: 10
+            http2MaxRequests: 100
+            maxRequestsPerConnection: 2
+        outlierDetection:
+          consecutive5xxErrors: 5
+          interval: 30s
+          baseEjectionTime: 30s
+          maxEjectionPercent: 50
+
+# ----------------------------------------------------------------------------
+# Feature: Persistence
+# ----------------------------------------------------------------------------
+persistence:
+  enabled: true
+  claims:
+    config:
+      size: 5Gi
+      storageClass: longhorn
+      accessMode: ReadWriteOnce
+      retain: true
+  volumes:
+    - name: config
+      persistentVolumeClaim:
+        claimName: seerr-config
+    - name: tmp
+      emptyDir:
+        sizeLimit: 1Gi
+
+# ----------------------------------------------------------------------------
+# Feature: Observability
+# ----------------------------------------------------------------------------
+metrics:
+  enabled: false
+  # TODO: Implement Seerr metrics stack (exporter/serviceMonitor/prometheusRule/grafana)
+  # in a follow-up change once a supported exporter path is selected.
+
+# ----------------------------------------------------------------------------
+# Service Account
+# ----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: "seerr"
+  automount: false
+  annotations:
+    description: "Seerr media center service account"
+
+# ----------------------------------------------------------------------------
+# Pod Disruption Budget
+# ----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
+
+# TODO: Revisit backup volume strategy and add NFS backup mount pattern if needed,
+# aligned with radarr/sonarr operational model.
