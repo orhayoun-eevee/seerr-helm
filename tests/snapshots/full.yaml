@@ -1,0 +1,416 @@
+---
+# Source: seerr/templates/all.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seerr-default
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: seerr
+      app.kubernetes.io/instance: test-release
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: istio-system
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: shared-platform-gateway
+      ports:
+      - port: 15008
+        protocol: TCP
+  egress:
+    - ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+    - ports:
+      - port: 5432
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: postgresql
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: databases
+    - ports:
+      - port: 15008
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: media-center
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: sonarr
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: media-center
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: radarr
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: istio-system
+    - ports:
+      - port: 80
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+      to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except:
+          - 10.42.0.0/16
+          - 10.43.0.0/16
+          - 192.168.0.0/16
+---
+# Source: seerr/templates/all.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: seerr
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: serviceaccount
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+  annotations:
+    description: Seerr media center service account
+automountServiceAccountToken: false
+---
+# Source: seerr/templates/all.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seerr-config
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: pvc
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: seerr/templates/all.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: seerr-http
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: service-http
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+  annotations:
+    description: Seerr HTTP service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/instance: test-release
+---
+# Source: seerr/templates/all.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: deployment
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seerr
+      app.kubernetes.io/instance: test-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: deployment
+        app.kubernetes.io/instance: test-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: seerr
+        app.kubernetes.io/version: v3.1.0
+        helm.sh/chart: seerr-0.0.1
+        app.kubernetes.io/part-of: media-center
+        logging.kubernetes.io/component: media-center
+        logging.kubernetes.io/service: seerr
+    spec:
+      
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 20030
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        supplementalGroups: []
+      serviceAccountName: seerr
+      nodeSelector:
+        kubernetes.io/os: linux
+      dnsPolicy: ClusterFirst
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr:v3.1.0@sha256:b35ba0461c4a1033d117ac1e5968fd4cbe777899e4cbfbdeaf3d10a42a0eb7e9
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: TZ
+              value: UTC
+            - name: PORT
+              value: "8080"
+            - name: HOST
+              value: 0.0.0.0
+            - name: CONFIG_DIRECTORY
+              value: /app/config
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_LOG_QUERIES
+              value: "false"
+          envFrom:
+            - secretRef:
+                name: seerr-db
+          volumeMounts:
+            - mountPath: /app/config
+              name: config
+            - mountPath: /tmp
+              name: tmp
+          resources:
+            limits:
+              cpu: 1000m
+              ephemeral-storage: 2Gi
+              memory: 2Gi
+            requests:
+              cpu: 200m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/v1/status
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/v1/status
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /api/v1/status
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            appArmorProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 20030
+            runAsNonRoot: true
+            runAsUser: 20030
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: seerr-config
+        - emptyDir:
+            sizeLimit: 1Gi
+          name: tmp
+---
+# Source: seerr/templates/all.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: seerr-ingress
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: authorization-policy
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seerr
+      app.kubernetes.io/instance: test-release
+  action: ALLOW
+  rules:
+    - from:
+      - source:
+          principals:
+          - cluster.local/ns/istio-system/sa/shared-platform-gateway-istio
+      to:
+      - operation:
+          ports:
+          - "8080"
+---
+# Source: seerr/templates/all.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: seerr
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: destination-rule
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  host: seerr-http
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 10
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+      tcp:
+        maxConnections: 100
+    outlierDetection:
+      baseEjectionTime: 30s
+      consecutive5xxErrors: 5
+      interval: 30s
+      maxEjectionPercent: 50
+---
+# Source: seerr/templates/all.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: seerr-route
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: http-route
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  parentRefs:
+    - name: shared-platform-gateway
+      namespace: istio-system
+      kind: Gateway
+      group: gateway.networking.k8s.io
+      sectionName: https
+  hostnames:
+    - seerr-k8s.orhayoun.com
+  rules:
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: seerr-http
+        port: 8080
+        weight: 100
+      matches:
+      - path:
+          type: PathPrefix
+          value: /
+---
+# Source: seerr/templates/all.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: seerr-http-redirect
+  namespace: media-center
+  labels:
+    app.kubernetes.io/component: http-route
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/version: v3.1.0
+    helm.sh/chart: seerr-0.0.1
+spec:
+  parentRefs:
+    - name: shared-platform-gateway
+      namespace: istio-system
+      kind: Gateway
+      group: gateway.networking.k8s.io
+      sectionName: http
+  hostnames:
+    - seerr-k8s.orhayoun.com
+  rules:
+    - filters:
+      - requestRedirect:
+          scheme: https
+          statusCode: 301
+        type: RequestRedirect
+      matches:
+      - path:
+          type: PathPrefix
+          value: /

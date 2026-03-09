@@ -1,0 +1,2 @@
+skip-check:
+  - CKV_K8S_35 # Seerr upstream supports DB credentials via DB_* env vars; chart consumes them from Secret env refs.

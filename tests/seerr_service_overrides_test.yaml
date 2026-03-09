@@ -1,0 +1,65 @@
+suite: seerr service and networking overrides
+templates:
+  - templates/all.yaml
+tests:
+  - it: applies http service type override
+    set:
+      network:
+        services:
+          items:
+            http:
+              type: NodePort
+    asserts:
+      - documentSelector:
+          path: metadata.name
+          value: seerr-http
+        equal:
+          path: spec.type
+          value: NodePort
+
+  - it: applies http service port override
+    set:
+      network:
+        services:
+          items:
+            http:
+              ports:
+                http:
+                  port: 8181
+    asserts:
+      - documentSelector:
+          path: metadata.name
+          value: seerr-http
+        equal:
+          path: spec.ports[0].port
+          value: 8181
+
+  - it: applies http route host override in dedicated suite
+    set:
+      network:
+        httpRoute:
+          host: seerr.override.internal
+    asserts:
+      - documentSelector:
+          path: metadata.name
+          value: seerr-route
+        equal:
+          path: spec.hostnames[0]
+          value: seerr.override.internal
+
+  - it: applies app timezone env override
+    set:
+      workload:
+        spec:
+          containers:
+            seerr:
+              env:
+                - name: TZ
+                  value: Europe/Berlin
+    asserts:
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: Europe/Berlin
