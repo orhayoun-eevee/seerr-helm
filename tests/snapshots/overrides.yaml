@@ -277,7 +277,7 @@ spec:
               - ALL
             privileged: false
             readOnlyRootFilesystem: true
-            runAsGroup: 1000
+            runAsGroup: 20030
             runAsNonRoot: true
             runAsUser: 2001
             seccompProfile:

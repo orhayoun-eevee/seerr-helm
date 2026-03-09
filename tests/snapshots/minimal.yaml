@@ -103,7 +103,7 @@ spec:
       
       terminationGracePeriodSeconds: 60
       securityContext:
-        fsGroup: 1000
+        fsGroup: 20030
         fsGroupChangePolicy: OnRootMismatch
         runAsNonRoot: true
         supplementalGroups: []
@@ -190,9 +190,9 @@ spec:
               - ALL
             privileged: false
             readOnlyRootFilesystem: true
-            runAsGroup: 1000
+            runAsGroup: 20030
             runAsNonRoot: true
-            runAsUser: 1000
+            runAsUser: 20030
             seccompProfile:
               type: RuntimeDefault
       volumes:

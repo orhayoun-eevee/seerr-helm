@@ -75,7 +75,7 @@ This updates `Chart.yaml`, refreshes `Chart.lock`, and regenerates snapshots.
 ## App-Specific Notes
 
 - Namespace: `media-center`
-- Main container runs as UID/GID `1000/1000`
+- Main container runs as UID/GID `20030/20030`
 - Config PVC claim: `seerr-config` (RWO)
 - Default service port: `8080` (`PORT=8080` env)
 - Health probes: `/api/v1/status`

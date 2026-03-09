@@ -1,3 +1,2 @@
 skip-check:
-  - CKV_K8S_40 # Seerr requires fixed UID/GID (1000/1000) for config volume compatibility.
   - CKV_K8S_35 # Seerr upstream supports DB credentials via DB_* env vars; chart consumes them from Secret env refs.

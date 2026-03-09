@@ -34,7 +34,7 @@ workload:
       logging.kubernetes.io/service: seerr
 
     podSecurityContext:
-      fsGroup: 1000
+      fsGroup: 20030
       fsGroupChangePolicy: OnRootMismatch
       runAsNonRoot: true
       supplementalGroups: []
@@ -114,8 +114,8 @@ workload:
         securityContext:
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 1000
-          runAsGroup: 1000
+          runAsUser: 20030
+          runAsGroup: 20030
           allowPrivilegeEscalation: false
           privileged: false
           appArmorProfile:
