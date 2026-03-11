@@ -326,9 +326,220 @@ persistence:
 # Feature: Observability
 # ----------------------------------------------------------------------------
 metrics:
-  enabled: false
-  # TODO: Implement Seerr metrics stack (exporter/serviceMonitor/prometheusRule/grafana)
-  # in a follow-up change once a supported exporter path is selected.
+  enabled: true
+  # ServiceMonitor scaffold remains disabled by default because Seerr does not
+  # expose native Prometheus metrics today. Keep this block for future support.
+  serviceMonitor:
+    enabled: false
+    port: 8080
+    portName: http
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    honorLabels: false
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: seerr
+        app.kubernetes.io/instance: seerr
+        app.kubernetes.io/component: service-http
+    namespaceSelector:
+      matchNames:
+        - media-center
+    relabelings:
+      - action: replace
+        sourceLabels:
+          - __meta_kubernetes_namespace
+        targetLabel: namespace
+      - action: replace
+        sourceLabels:
+          - __meta_kubernetes_pod_name
+        targetLabel: instance
+    metricRelabelings:
+      - action: replace
+        replacement: seerr
+        targetLabel: service
+      - action: replace
+        replacement: media-center
+        targetLabel: component
+
+  # PrometheusRule based on platform metrics only (istio + cAdvisor + kube-state-metrics + kubelet)
+  prometheusRule:
+    enabled: true
+    rules:
+      - alert: SeerrDeploymentUnavailable
+        expr: kube_deployment_status_replicas_available{deployment="seerr", namespace="media-center"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: seerr
+          component: media-center
+        annotations:
+          summary: "Seerr deployment is unavailable"
+          description: "No Seerr replicas are available for more than 5 minutes."
+      - alert: SeerrContainerRestartsHigh
+        expr: increase(kube_pod_container_status_restarts_total{namespace="media-center", pod=~"seerr-.*", container="seerr"}[1h]) > 2
+        for: 0m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+        annotations:
+          summary: "Seerr container restarting frequently"
+          description: "Seerr container in pod {{ $labels.pod }} restarted more than 2 times in the last hour."
+      - alert: SeerrHighCPUUtilization
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{namespace="media-center", pod=~"seerr-.*", container="seerr"}[5m]))
+            /
+            sum(kube_pod_container_resource_requests{namespace="media-center", pod=~"seerr-.*", container="seerr", resource="cpu"})
+          ) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          resource: cpu
+        annotations:
+          summary: "Seerr CPU utilization is high"
+          description: "Seerr CPU usage is above 80% of requested CPU for more than 10 minutes (value={{ $value }}%)."
+      - alert: SeerrHighMemoryUtilization
+        expr: |
+          (
+            max(container_memory_working_set_bytes{namespace="media-center", pod=~"seerr-.*", container="seerr"})
+            /
+            max(kube_pod_container_resource_limits{namespace="media-center", pod=~"seerr-.*", container="seerr", resource="memory"})
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          resource: memory
+        annotations:
+          summary: "Seerr memory utilization is high"
+          description: "Seerr memory working set is above 85% of memory limit for more than 10 minutes (value={{ $value }}%)."
+      - alert: SeerrConfigPVCHighUsage
+        expr: (kubelet_volume_stats_used_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}) * 100 > 85
+        for: 15m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          resource: storage
+        annotations:
+          summary: "Seerr config PVC usage is high"
+          description: "Seerr config PVC usage has exceeded 85% for more than 15 minutes (value={{ $value }}%)."
+      - alert: SeerrConfigPVCInodesHighUsage
+        expr: (kubelet_volume_stats_inodes_used{persistentvolumeclaim="seerr-config", namespace="media-center"} / kubelet_volume_stats_inodes{persistentvolumeclaim="seerr-config", namespace="media-center"}) * 100 > 85
+        for: 15m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          resource: storage
+        annotations:
+          summary: "Seerr config PVC inode usage is high"
+          description: "Seerr config PVC inode usage has exceeded 85% for more than 15 minutes (value={{ $value }}%)."
+      - alert: SeerrIstioHigh5xxRate
+        expr: |
+          (
+            (
+              sum(rate(istio_requests_total{destination_service_name="seerr-http", destination_service_namespace="media-center", response_code=~"5.."}[5m]))
+              /
+              sum(rate(istio_requests_total{destination_service_name="seerr-http", destination_service_namespace="media-center"}[5m]))
+            ) * 100 > 2
+          )
+          and
+          sum(rate(istio_requests_total{destination_service_name="seerr-http", destination_service_namespace="media-center"}[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          traffic: istio
+        annotations:
+          summary: "Seerr Istio 5xx error rate is high"
+          description: "Seerr 5xx response rate exceeded 2% for more than 10 minutes."
+      - alert: SeerrIstioHighP95Latency
+        expr: histogram_quantile(0.95, sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name="seerr-http", destination_service_namespace="media-center"}[5m])) by (le)) > 750
+        for: 10m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          traffic: istio
+        annotations:
+          summary: "Seerr Istio p95 latency is high"
+          description: "Seerr p95 request latency is above 750ms for more than 10 minutes (value={{ $value }}ms)."
+      - alert: SeerrAuthorizationPolicyDenials
+        expr: |
+          sum(
+            rate(istio_requests_total{
+              destination_workload="seerr",
+              destination_workload_namespace="media-center",
+              destination_service_name="seerr-http",
+              request_protocol="http",
+              response_code="403",
+              response_flags="SEC"
+            }[5m])
+          ) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: seerr
+          component: media-center
+          security: authorization
+        annotations:
+          summary: "Seerr authorization policy denials detected"
+          description: "Seerr is experiencing authorization policy denials (403/SEC)."
+      - alert: SeerrHighAuthorizationDenialRate
+        expr: |
+          (
+            sum(
+              rate(istio_requests_total{
+                destination_workload="seerr",
+                destination_workload_namespace="media-center",
+                destination_service_name="seerr-http",
+                request_protocol="http",
+                response_code="403",
+                response_flags="SEC"
+              }[5m])
+            )
+            /
+            sum(
+              rate(istio_requests_total{
+                destination_workload="seerr",
+                destination_workload_namespace="media-center",
+                destination_service_name="seerr-http",
+                request_protocol="http"
+              }[5m])
+            )
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: seerr
+          component: media-center
+          security: authorization
+        annotations:
+          summary: "Seerr high authorization denial rate"
+          description: "Seerr has a high authorization denial rate ({{ $value }}% of requests denied)."
+
+  # Grafana dashboard generated from dashboards/app.json
+  grafana:
+    enabled: true
+    instanceSelector:
+      matchLabels:
+        app.kubernetes.io/instance: prometheus
+        app.kubernetes.io/name: grafana
+    dashboard:
+      enabled: true
+      items:
+        seerr-dashboard:
+          enabled: true
+          name: "application"
+          allowCrossNamespaceImport: true
+          file: "app.json"
 
 # ----------------------------------------------------------------------------
 # Service Account

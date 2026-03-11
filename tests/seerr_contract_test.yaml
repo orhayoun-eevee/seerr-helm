@@ -5,7 +5,7 @@ tests:
   - it: renders expected default resource set and ingress host
     asserts:
       - hasDocuments:
-          count: 9
+          count: 11
       - documentSelector:
           path: metadata.name
           value: seerr-route
@@ -14,10 +14,42 @@ tests:
           value: seerr-k8s.orhayoun.com
       - documentSelector:
           path: kind
+          value: PrometheusRule
+        exists:
+          path: metadata.name
+      - documentSelector:
+          path: kind
+          value: GrafanaDashboard
+        equal:
+          path: spec.instanceSelector.matchLabels["app.kubernetes.io/instance"]
+          value: prometheus
+      - documentSelector:
+          path: kind
+          value: GrafanaDashboard
+        equal:
+          path: spec.instanceSelector.matchLabels["app.kubernetes.io/name"]
+          value: grafana
+      - documentSelector:
+          path: kind
           value: DestinationRule
         equal:
           path: spec.host
           value: seerr-http
+
+  - it: enables serviceMonitor when explicitly turned on
+    set:
+      metrics:
+        serviceMonitor:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 12
+      - documentSelector:
+          path: kind
+          value: ServiceMonitor
+        equal:
+          path: spec.endpoints[0].port
+          value: http
 
   - it: wires seerr application container security and pvc correctly
     asserts:
@@ -67,7 +99,7 @@ tests:
             enabled: false
     asserts:
       - hasDocuments:
-          count: 8
+          count: 10
 
   - it: applies httproute host override
     set:
