@@ -419,7 +419,12 @@ metrics:
           summary: "Seerr memory utilization is high"
           description: "Seerr memory working set is above 85% of memory limit for more than 10 minutes (value={{ $value }}%)."
       - alert: SeerrConfigPVCHighUsage
-        expr: (kubelet_volume_stats_used_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}) * 100 > 85
+        expr: |
+          (
+            kubelet_volume_stats_used_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+            /
+            kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+          ) * 100 > 85
         for: 15m
         labels:
           severity: warning
@@ -430,7 +435,12 @@ metrics:
           summary: "Seerr config PVC usage is high"
           description: "Seerr config PVC usage has exceeded 85% for more than 15 minutes (value={{ $value }}%)."
       - alert: SeerrConfigPVCInodesHighUsage
-        expr: (kubelet_volume_stats_inodes_used{persistentvolumeclaim="seerr-config", namespace="media-center"} / kubelet_volume_stats_inodes{persistentvolumeclaim="seerr-config", namespace="media-center"}) * 100 > 85
+        expr: |
+          (
+            kubelet_volume_stats_inodes_used{persistentvolumeclaim="seerr-config", namespace="media-center"}
+            /
+            kubelet_volume_stats_inodes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+          ) * 100 > 85
         for: 15m
         labels:
           severity: warning
