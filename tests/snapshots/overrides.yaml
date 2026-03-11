@@ -516,9 +516,12 @@ spec:
             description: Seerr config PVC usage has exceeded 85% for more than 15 minutes
               (value={{ $value }}%).
             summary: Seerr config PVC usage is high
-          expr: (kubelet_volume_stats_used_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}
-            / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"})
-            * 100 > 85
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+              /
+              kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+            ) * 100 > 85
           for: 15m
           labels:
             component: media-center
@@ -530,9 +533,12 @@ spec:
             description: Seerr config PVC inode usage has exceeded 85% for more than 15 minutes
               (value={{ $value }}%).
             summary: Seerr config PVC inode usage is high
-          expr: (kubelet_volume_stats_inodes_used{persistentvolumeclaim="seerr-config", namespace="media-center"}
-            / kubelet_volume_stats_inodes{persistentvolumeclaim="seerr-config", namespace="media-center"})
-            * 100 > 85
+          expr: |
+            (
+              kubelet_volume_stats_inodes_used{persistentvolumeclaim="seerr-config", namespace="media-center"}
+              /
+              kubelet_volume_stats_inodes{persistentvolumeclaim="seerr-config", namespace="media-center"}
+            ) * 100 > 85
           for: 15m
           labels:
             component: media-center
