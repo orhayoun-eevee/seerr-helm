@@ -80,6 +80,14 @@ This updates `Chart.yaml`, refreshes `Chart.lock`, and regenerates snapshots.
 - Default service port: `8080` (`PORT=8080` env)
 - Health probes: `/api/v1/status`
 
+## Observability
+
+- `metrics.enabled=true` by default and renders:
+  - `PrometheusRule` (platform metrics alerts)
+  - `GrafanaDashboard` (`dashboards/app.json`)
+- `ServiceMonitor` scaffold is included in values but disabled by default (`metrics.serviceMonitor.enabled=false`), because Seerr does not currently expose native Prometheus metrics.
+- Dashboard and alerts use platform sources only: Istio, cAdvisor, kube-state-metrics, and kubelet metrics.
+
 ## Database Configuration Contract
 
 This chart defaults to PostgreSQL (`DB_TYPE=postgres`) and consumes DB connection settings from external `Secret/seerr-db`.
@@ -106,7 +114,6 @@ Important upstream constraint: Seerr currently supports DB credentials via `DB_*
 
 ## TODOs
 
-- Implement Seerr metrics stack (exporter + `ServiceMonitor` + `PrometheusRule` + dashboard wiring).
 - Revisit NFS backup volume strategy to align with Sonarr/Radarr operational backup pattern.
 
 ## References
