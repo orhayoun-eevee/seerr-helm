@@ -83,6 +83,36 @@ tests:
         equal:
           path: metadata.name
           value: seerr-config
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].mountPath
+          value: /app/config/settings.json
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].subPath
+          value: settings.json
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.volumes[1].name
+          value: settings
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.volumes[1].nfs.server
+          value: snorlax.orhayoun.com
+      - documentSelector:
+          path: kind
+          value: Deployment
+        equal:
+          path: spec.template.spec.volumes[1].nfs.path
+          value: /mnt/vol1/k8s/media-center/seerr/
 
   - it: keeps minimal scenario render compact and deterministic
     values:

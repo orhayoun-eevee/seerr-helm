@@ -75,6 +75,9 @@ workload:
         volumeMounts:
           - name: config
             mountPath: /app/config
+          - name: settings
+            mountPath: /app/config/settings.json
+            subPath: settings.json
           - name: tmp
             mountPath: /tmp
 
@@ -318,6 +321,10 @@ persistence:
     - name: config
       persistentVolumeClaim:
         claimName: seerr-config
+    - name: settings
+      nfs:
+        server: snorlax.orhayoun.com
+        path: /mnt/vol1/k8s/media-center/seerr/
     - name: tmp
       emptyDir:
         sizeLimit: 1Gi
@@ -568,6 +575,3 @@ podDisruptionBudget:
   enabled: false
   minAvailable: 1
   unhealthyPodEvictionPolicy: AlwaysAllow
-
-# TODO: Revisit backup volume strategy and add NFS backup mount pattern if needed,
-# aligned with radarr/sonarr operational model.
