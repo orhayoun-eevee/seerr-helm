@@ -2,7 +2,7 @@ apiVersion: v2
 name: seerr
 description: A Helm chart for Seerr using lib-chart
 type: application
-version: 0.0.2
+version: 0.0.3
 appVersion: "v3.1.0"
 keywords:
   - seerr

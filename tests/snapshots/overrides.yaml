@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   podSelector:
     matchLabels:
@@ -98,7 +98,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
   annotations:
     description: Seerr media center service account
 automountServiceAccountToken: false
@@ -115,7 +115,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
   annotations:
     helm.sh/resource-policy: keep
 spec:
@@ -138,7 +138,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
   annotations:
     description: Seerr HTTP service
 spec:
@@ -164,7 +164,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   replicas: 2
   revisionHistoryLimit: 3
@@ -182,7 +182,7 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: seerr
         app.kubernetes.io/version: v3.1.0
-        helm.sh/chart: seerr-0.0.2
+        helm.sh/chart: seerr-0.0.3
         app.kubernetes.io/part-of: media-center
         logging.kubernetes.io/component: media-center
         logging.kubernetes.io/service: seerr
@@ -227,6 +227,9 @@ spec:
           volumeMounts:
             - mountPath: /app/config
               name: config
+            - mountPath: /app/config/settings.json
+              name: settings
+              subPath: settings.json
             - mountPath: /tmp
               name: tmp
           resources:
@@ -286,6 +289,10 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: seerr-config
+        - name: settings
+          nfs:
+            path: /mnt/vol1/k8s/media-center/seerr/
+            server: snorlax.orhayoun.com
         - emptyDir:
             sizeLimit: 1Gi
           name: tmp
@@ -302,7 +309,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   selector:
     matchLabels:
@@ -331,7 +338,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   host: seerr-http
   trafficPolicy:
@@ -360,7 +367,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   instanceSelector:
     matchLabels:
@@ -382,7 +389,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   parentRefs:
     - name: shared-platform-gateway
@@ -416,7 +423,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   parentRefs:
     - name: shared-platform-gateway
@@ -449,7 +456,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: seerr
     app.kubernetes.io/version: v3.1.0
-    helm.sh/chart: seerr-0.0.2
+    helm.sh/chart: seerr-0.0.3
 spec:
   groups:
     - name: seerr.rules

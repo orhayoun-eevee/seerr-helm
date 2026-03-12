@@ -77,6 +77,7 @@ This updates `Chart.yaml`, refreshes `Chart.lock`, and regenerates snapshots.
 - Namespace: `media-center`
 - Main container runs as UID/GID `20030/20030`
 - Config PVC claim: `seerr-config` (RWO)
+- Settings backup NFS path: `/mnt/vol1/k8s/media-center/seerr/` (`settings.json` mounted into `/app/config/settings.json`)
 - Default service port: `8080` (`PORT=8080` env)
 - Health probes: `/api/v1/status`
 
@@ -112,9 +113,22 @@ The secret lifecycle is intentionally external to this chart (Argo CD package + 
 
 Important upstream constraint: Seerr currently supports DB credentials via `DB_*` env vars; DB username/password file-based alternatives are not supported upstream.
 
-## TODOs
+## Settings Backup Mount Migration (Required)
 
-- Revisit NFS backup volume strategy to align with Sonarr/Radarr operational backup pattern.
+Before deploying this chart version, seed the NFS copy of `settings.json` from the currently running Seerr pod.
+
+1. Identify the active Seerr pod in namespace `media-center`.
+2. Copy `/app/config/settings.json` out of the running container.
+3. Upload/copy that file to NFS path `/mnt/vol1/k8s/media-center/seerr/settings.json`.
+4. Ensure ownership and permissions allow Seerr runtime identity (`20030:20030`) to read/write the file.
+5. Verify the file exists on NFS, then deploy the chart update.
+
+This chart intentionally mounts NFS-backed `settings.json` directly into Seerr runtime. If the NFS file is missing or inaccessible, Seerr startup can fail.
+
+## Backup Scope
+
+- This chart handles only `settings.json` persistence backup wiring.
+- Database backup/restore remains external and is handled by PostgreSQL operations outside this chart (Argo CD-managed DB workflow).
 
 ## References
 
