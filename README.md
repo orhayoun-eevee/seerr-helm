@@ -1,6 +1,6 @@
 # Seerr Helm Chart
 
-This chart deploys Seerr using the shared dependency `lib-chart` (`0.0.13`).
+This chart deploys Seerr using the shared dependency `lib-chart` (`0.0.14`).
 
 ## Installation
 
@@ -10,7 +10,7 @@ helm install seerr . --namespace media-center
 
 ## Dependencies
 
-- `lib-chart` (`0.0.13`) from `oci://ghcr.io/orhayoun-eevee`
+- `lib-chart` (`0.0.14`) from `oci://ghcr.io/orhayoun-eevee`
 
 Update dependencies from chart root:
 
