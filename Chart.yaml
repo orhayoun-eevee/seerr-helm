@@ -10,7 +10,7 @@ keywords:
   - requests
 dependencies:
   - name: lib-chart
-    version: "0.0.13"
+    version: "0.0.14"
     repository: "oci://ghcr.io/orhayoun-eevee"
 maintainers:
   - name: Seerr Team
