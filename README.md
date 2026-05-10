@@ -32,7 +32,7 @@ This chart follows the same reusable 5-layer validation pipeline used by `helm-c
 
 - Required gate: `.github/workflows/pr-required-checks.yaml` (thin wrapper around centralized `pr-required-checks-chart.yaml` in `build-workflow`; this is the only automatic PR gate)
 - Release: `.github/workflows/on-tag.yaml` -> `build-workflow/.github/workflows/release-chart.yaml` (includes keyless signing/attestation)
-- Renovate snapshot updates: `.github/workflows/renovate-snapshot-update.yaml` (Renovate PRs touching `values.yaml`)
+- Renovate snapshot updates: `.github/workflows/renovate-snapshot-update.yaml` (Renovate PRs touching render inputs)
 - Renovate config validation: `.github/workflows/renovate-config.yaml` (automatic on matching config changes; supports `workflow_dispatch`)
 
 ### Local Docker Validation
@@ -153,4 +153,4 @@ Recommended contexts:
 - `PR Required Checks / ci-required / ci-required (pull_request)`
 - `PR Required Checks / ci-required / ci-required (merge_group)`
 
-For Renovate PRs that change `values.yaml`, `.github/workflows/renovate-snapshot-update.yaml` runs `make snapshot-update` and commits updated `tests/snapshots/*` back to the PR branch so strict snapshot checks remain enforced.
+For Renovate PRs that change render inputs (`Chart.yaml`, `Chart.lock`, `values.yaml`, `templates/`, `charts/`, or `tests/scenarios/`), `.github/workflows/renovate-snapshot-update.yaml` runs `make snapshot-update` and commits updated `tests/snapshots/*` back to the PR branch so strict snapshot checks remain enforced.
